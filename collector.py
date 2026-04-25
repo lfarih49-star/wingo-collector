@@ -1,16 +1,14 @@
 import requests
 import os
 
-SUPABASE_URL = os.environ["SUPABASE_URL"]
-SUPABASE_KEY = os.environ["SUPABASE_KEY"]
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
 API = "https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json?pageNo=1&pageSize=10"
 
-headers = {
-    "apikey": SUPABASE_KEY,
-    "Authorization": f"Bearer {SUPABASE_KEY}",
-    "Content-Type": "application/json",
-    "Prefer": "resolution=ignore-duplicates"
+HEADERS = {
+    "User-Agent": "Mozilla/5.0",
+    "Accept": "application/json"
 }
 
 COLOR_MAP = {
@@ -20,9 +18,15 @@ COLOR_MAP = {
 
 def fetch_data():
     try:
-        res = requests.get(API, timeout=10)
+        res = requests.get(API, headers=HEADERS, timeout=10)
+        print("Status Code:", res.status_code)
+
+        # Debug print (important)
+        print("Raw Response:", res.text[:200])
+
         data = res.json()
         return data.get("data", {}).get("list", [])
+
     except Exception as e:
         print("API Error:", e)
         return []
@@ -38,10 +42,22 @@ def process(item):
     }
 
 def save(rows):
-    url = f"{SUPABASE_URL}/rest/v1/wingo_1min"
-    res = requests.post(url, json=rows, headers=headers)
-    print("Insert status:", res.status_code)
-    print("Response:", res.text)
+    try:
+        url = f"{SUPABASE_URL}/rest/v1/wingo_1min"
+
+        headers = {
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "Content-Type": "application/json",
+            "Prefer": "resolution=ignore-duplicates"
+        }
+
+        res = requests.post(url, json=rows, headers=headers)
+        print("Insert status:", res.status_code)
+        print("Insert response:", res.text)
+
+    except Exception as e:
+        print("Insert Error:", e)
 
 def main():
     items = fetch_data()
@@ -53,6 +69,7 @@ def main():
     rows = [process(i) for i in items]
 
     print(f"Fetched {len(rows)} items")
+
     save(rows)
 
 if __name__ == "__main__":
